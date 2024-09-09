@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>IV Therapy Dashboard</title>
+    <link
+      href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <style>
+      body {
+        background-color: #f8f9fa;
+        height: 100vh;
+      }
+      .dashboard-container {
+        display: flex;
+      }
+      .sidebar {
+        background-color: #1707a1;
+        color: white;
+        width: 200px;
+        padding: 20px;
+        height: 100vh;
+      }
+      .sidebar h2 {
+        font-size: 18px;
+        color: white;
+        text-align: center;
+      }
+      .sidebar ul {
+        list-style: none;
+        padding: 0;
+      }
+      .sidebar ul li {
+        padding: 10px 0;
+        text-align: center;
+      }
+      .sidebar ul li a {
+        color: white;
+        text-decoration: none;
+      }
+      .main-content {
+        flex: 1;
+        padding: 20px;
+      }
+      .iv-therapy-container {
+        background-color: white;
+        padding: 30px;
+        border-radius: 10px;
+        text-align: center;
+        box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+      }
+      .iv-bag {
+        position: relative;
+        width: 100px;
+        height: 200px;
+        border: 3px solid #1707a1;
+        border-radius: 20px;
+        background-color: transparent;
+        margin: 0 auto;
+        overflow: hidden;
+      }
+      .iv-bag-fill {
+        position: absolute;
+        bottom: 0;
+        width: 100%;
+        background-color: #00aaff;
+        transition: height 0.5s ease;
+      }
+      .iv-bag-label {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        color: #1707a1;
+        font-weight: bold;
+        font-size: 24px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="dashboard-container">
+      <!-- Sidebar -->
+      <div class="sidebar">
+        <h2>Dashboard</h2>
+        <ul>
+          <li><a href="#">Home</a></li>
+          <li><a href="{% url 'logout' %}">Logout</a></li>
+        </ul>
+      </div>
+
+      <!-- Main Content -->
+      <div class="main-content pt-5">
+        <div class="iv-therapy-container">
+          <div class="d-flex justify-content-between">
+            <h1>Room: #001</h1>
+            <h1>Bed: #001</h1>
+          </div>
+          <h3>IV Therapy Bag</h3>
+          <div class="iv-bag">
+            <div id="iv-bag-fill" class="iv-bag-fill" style="height: 0%"></div>
+            <div id="iv-bag-label" class="iv-bag-label">0%</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // Dummy data for the IV bag percentage
+      let ivBagPercentage = 75; // Replace with real data from the database
+
+      // Update the bag fill height
+      document.getElementById("iv-bag-fill").style.height =
+        ivBagPercentage + "%";
+
+      // Update the label inside the bag
+      document.getElementById("iv-bag-label").innerText = ivBagPercentage + "%";
+    </script>
+
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.2/dist/js/bootstrap.bundle.min.js"></script>
+  </body>
+</html>
