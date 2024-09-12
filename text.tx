@@ -1,0 +1,170 @@
+#include <Wire.h>
+#include <LiquidCrystal_I2C.h>
+#include "HX711.h"
+#include <ESP8266WiFi.h>  // Add for WiFi connection
+#include <ESP8266HTTPClient.h>  // Add for HTTP requests
+#include <ArduinoJson.h>  // Add for JSON handling
+
+// HX711 circuit wiring for NodeMCU
+#define LOADCELL_DOUT_PIN D2  // GPIO 4
+#define LOADCELL_SCK_PIN D1   // GPIO 5
+#define BUZZER_PIN D0         // Buzzer Pin on GPIO 16
+
+#define SDA_PIN D3            // Define SDA pin
+#define SCL_PIN D4            // Define SCL pin
+
+HX711 scale;
+LiquidCrystal_I2C lcd(0x27, 16, 2);  // I2C address 0x27, 16 column, 2 rows LCD
+
+float initialWeight = 0;
+const float CALIBRATION_FACTOR = 2280.f;  // Adjust this value based on your calibration
+bool initialWeightCaptured = false;
+
+// WiFi credentials
+const char* ssid = "Franco";         // Replace with your network SSID
+const char* password = "12345678"; // Replace with your network password
+
+void setup() {
+  Serial.begin(115200);  // Changed to 115200 for faster serial communication
+
+  // Connect to WiFi
+  WiFi.begin(ssid, password);
+  Serial.print("Connecting to WiFi");
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println("Connected to WiFi");
+
+  // Initialize I2C communication with custom SDA and SCL pins
+  Wire.begin(SDA_PIN, SCL_PIN);
+  lcd.begin(16, 2);             
+  lcd.backlight();          // Turn on LCD backlight
+  lcd.setCursor(0, 0);
+  lcd.print("Initializing..."); // Display initial message
+
+  pinMode(BUZZER_PIN, OUTPUT);   // Set buzzer pin as output
+  digitalWrite(BUZZER_PIN, LOW); // Buzzer off initially
+
+  scale.begin(LOADCELL_DOUT_PIN, LOADCELL_SCK_PIN);
+
+  Serial.println("Initializing the scale...");
+  scale.set_scale(CALIBRATION_FACTOR);
+  scale.tare();  // Reset the scale to 0
+
+  // Wait for a short period to allow the scale to stabilize
+  delay(2000);
+
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("Waiting for IV Bag");
+
+  Serial.println("Waiting for the IV bag weight to exceed 300 grams...");
+}
+
+void loop() {
+  if (scale.is_ready()) {
+    float currentWeight = getWeight();
+
+    // Capture the initial weight if it's greater than 300 grams
+    if (!initialWeightCaptured && currentWeight > 300) {
+      initialWeight = currentWeight;
+      initialWeightCaptured = true;
+
+      lcd.clear();
+      lcd.setCursor(0, 0);
+      lcd.print("Initial: ");
+      lcd.print(initialWeight, 1);
+      lcd.print(" g");
+
+      Serial.print("Initial IV bag weight captured: ");
+      Serial.print(initialWeight, 1);
+      Serial.println(" grams");
+
+      delay(2000); // Allow time for the initial weight to be displayed
+    }
+
+    if (initialWeightCaptured) {
+      float remainingPercentage = (currentWeight / initialWeight) * 100;
+
+      // Display weight and percentage on LCD
+      lcd.clear();
+      lcd.setCursor(0, 0);
+      lcd.print("Weight: ");
+      lcd.print(currentWeight, 1);
+      lcd.print(" g");
+
+      lcd.setCursor(0, 1);
+      lcd.print("Rem: ");
+      lcd.print(remainingPercentage, 1);
+      lcd.print("%");
+
+      // Display weight and percentage in serial monitor
+      Serial.print("Current Weight: ");
+      Serial.print(currentWeight, 1);
+      Serial.print(" g | Remaining: ");
+      Serial.print(remainingPercentage, 1);
+      Serial.println("%");
+
+      // Activate buzzer if IV bag is below 20% remaining
+      if (remainingPercentage < 20) {
+        Serial.println("WARNING: IV bag is below 20%!");
+        digitalWrite(BUZZER_PIN, HIGH);  // Turn on the buzzer
+      } else {
+        digitalWrite(BUZZER_PIN, LOW);   // Turn off the buzzer
+      }
+
+      // Send data to the server
+      sendDataToServer(currentWeight, remainingPercentage);
+    }
+  } else {
+    Serial.println("HX711 not found.");
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("HX711 Error");
+  }
+
+  delay(2000);  // Wait for 2 seconds before the next reading
+}
+
+float getWeight() {
+  return scale.get_units(10);  // Get average of 10 readings for stability
+}
+
+// Function to send weight and percentage data to the server
+void sendDataToServer(float weight, float percentage) {
+  if (WiFi.status() == WL_CONNECTED) {
+    HTTPClient http;
+    WiFiClient client;
+    
+    http.begin(client, "http://192.168.147.91:8000/api/record_weight/"); // Replace with your actual URL
+    http.addHeader("Content-Type", "application/json");
+
+    // Create JSON object with weight and percentage
+    StaticJsonDocument<200> doc;
+    doc["weight"] = weight;
+    doc["percentage"] = percentage;
+
+    // Convert JSON object to string
+    String jsonString;
+    serializeJson(doc, jsonString);
+
+    // Send HTTP POST request
+    int httpResponseCode = http.POST(jsonString);
+
+    if (httpResponseCode > 0) {
+      String response = http.getString();
+      Serial.print("Response Code: ");
+      Serial.println(httpResponseCode);
+      Serial.print("Response: ");
+      Serial.println(response);
+    } else {
+      Serial.print("Error Code: ");
+      Serial.println(httpResponseCode);
+    }
+
+    http.end();
+  } else {
+    Serial.println("Error in WiFi connection");
+  }
+}
