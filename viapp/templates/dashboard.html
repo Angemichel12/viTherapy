@@ -97,7 +97,7 @@
             <h1>Room: #001</h1>
             <h1>Bed: #001</h1>
           </div>
-          <h3>IV Therapy Bag</h3>
+          <h3>MKU Medical Center</h3>
           <div class="iv-bag">
             <div id="iv-bag-fill" class="iv-bag-fill" style="height: 0%"></div>
             <div id="iv-bag-label" class="iv-bag-label">0%</div>
@@ -107,15 +107,37 @@
     </div>
 
     <script>
-      // Dummy data for the IV bag percentage
-      let ivBagPercentage = 75; // Replace with real data from the database
+      // Fetch IV bag percentage from the server
+      async function fetchIvBagPercentage() {
+        try {
+          const response = await fetch("/api/get_iv_percentage/"); // Adjust the API endpoint URL as needed
+          const data = await response.json();
+          console.log(data);
 
-      // Update the bag fill height
-      document.getElementById("iv-bag-fill").style.height =
-        ivBagPercentage + "%";
+          let ivBagPercentage = data.percentage;
 
-      // Update the label inside the bag
-      document.getElementById("iv-bag-label").innerText = ivBagPercentage + "%";
+          // If percentage is less than 0, set it to 0
+          if (ivBagPercentage < 0) {
+            ivBagPercentage = 0;
+          }
+
+          // Update the bag fill height
+          document.getElementById("iv-bag-fill").style.height =
+            ivBagPercentage + "%";
+
+          // Update the label inside the bag
+          document.getElementById("iv-bag-label").innerText =
+            ivBagPercentage + "%";
+        } catch (error) {
+          console.error("Error fetching IV bag data:", error);
+        }
+      }
+
+      // Fetch percentage when the page loads
+      fetchIvBagPercentage();
+
+      // You can add a timer to refresh the percentage periodically
+      setInterval(fetchIvBagPercentage, 5000); // Refresh every 5 seconds
     </script>
 
     <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
